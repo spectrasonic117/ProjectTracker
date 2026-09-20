@@ -20,6 +20,15 @@ bun run preview
 
 Otros comandos: `bun run check` (typecheck con `astro check`).
 
+## Despliegue en GitHub Pages
+
+El workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) compila y publica
+automáticamente en **https://spectrasonic117.github.io/ProjectTracker/** con cada push a `master`.
+
+- Requiere que en **Settings → Pages** la fuente sea **GitHub Actions** (solo la primera vez).
+- El workflow define `PAGES_SITE` y `PAGES_BASE_PATH`; en local la app se sirve en la raíz sin afectarse.
+- También se puede lanzar a mano desde la pestaña **Actions** («Deploy a GitHub Pages» → Run workflow).
+
 ## Funcionalidades
 
 - **Espacios de trabajo** por proyecto: crear, renombrar, eliminar (con confirmación) y cambiar entre ellos.
