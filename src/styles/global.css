@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --color-accent: #0a84ff;
+}
+
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(10 132 255 / 0.25);
+}
+
+/* Scrollbars finos y discretos, al estilo de macOS */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0 0 0 / 0.18) transparent;
+}
+.dark * {
+  scrollbar-color: rgb(255 255 255 / 0.18) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(0 0 0 / 0.18);
+  border-radius: 8px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.18);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Swatch del selector de color nativo (input[type=color]) */
+input[type='color'].color-swatch {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+input[type='color'].color-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type='color'].color-swatch::-webkit-color-swatch {
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 9999px;
+}
+input[type='color'].color-swatch::-moz-color-swatch {
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 9999px;
+}
+
+@layer components {
+  .icon-btn {
+    @apply grid h-7 w-7 shrink-0 cursor-pointer touch-none place-items-center rounded-lg text-neutral-500 outline-none transition-[background-color,color,transform] duration-150 hover:bg-black/[.06] hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-90 dark:text-neutral-400 dark:hover:bg-white/[.1] dark:hover:text-white;
+  }
+
+  .btn-primary {
+    @apply inline-flex cursor-pointer touch-none items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-[13px] font-semibold text-white shadow-sm outline-none transition-[background-color,transform] duration-150 hover:bg-[#2f9bff] focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95;
+  }
+
+  .btn-danger {
+    @apply inline-flex cursor-pointer touch-none items-center gap-1.5 rounded-full bg-[#ff375f] px-3.5 py-1.5 text-[13px] font-semibold text-white shadow-sm outline-none transition-[background-color,transform] duration-150 hover:bg-[#ff5577] focus-visible:ring-2 focus-visible:ring-[#ff375f]/60 active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply inline-flex cursor-pointer touch-none items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-neutral-600 outline-none transition-[background-color,transform] duration-150 hover:bg-black/[.06] focus-visible:ring-2 focus-visible:ring-accent/60 active:scale-95 dark:text-neutral-300 dark:hover:bg-white/[.1];
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-accent/60 focus:ring-2 focus:ring-accent/20 dark:border-white/10 dark:bg-white/[.06] dark:text-neutral-100;
+  }
+}
+
+/* Entradas de diálogos: escala + fade cortos, con equivalente suave si el
+   usuario prefiere menos movimiento. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.pop-in {
+  animation: pop-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.fade-in {
+  animation: fade-in 0.18s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop-in,
+  .fade-in {
+    animation: fade-in 0.12s ease;
+  }
+}
