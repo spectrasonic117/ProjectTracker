@@ -21,6 +21,9 @@ import { useConfirm } from '../lib/confirm';
 import { useTheme } from '../lib/useTheme';
 import { CardComposer, SortableCard } from './Card';
 
+/** true cuando el frontend corre dentro del shell nativo de Tauri (app de escritorio). */
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
@@ -129,19 +132,9 @@ function SidebarFooter() {
   const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /** Descarga todo el estado de la app como archivo JSON. */
-  const handleExport = () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `project-tracker-${new Date().toISOString().slice(0, 10)}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportFile = async (file: File) => {
-    const imported = parseState(await file.text());
+  /** Valida el contenido JSON y, tras confirmación, reemplaza el estado actual. */
+  const importText = async (raw: string) => {
+    const imported = parseState(raw);
     if (!imported) {
       await confirm({
         mode: 'alert',
@@ -165,6 +158,55 @@ function SidebarFooter() {
     if (ok) actions.importState(imported);
   };
 
+  /** Alerta con el mensaje de un fallo de exportación/importación nativa. */
+  const showNativeError = async (title: string, error: unknown) => {
+    await confirm({
+      mode: 'alert',
+      title,
+      message: error instanceof Error ? error.message : String(error),
+      confirmLabel: 'Aceptar',
+    });
+  };
+
+  /** Exporta el estado: diálogo de guardado nativo en escritorio, descarga en la web. */
+  const handleExport = async () => {
+    const contents = JSON.stringify(state, null, 2);
+    const fileName = `project-tracker-${new Date().toISOString().slice(0, 10)}.json`;
+
+    if (isTauri) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('export_state_json', { contents, fileName });
+      } catch (error) {
+        await showNativeError('No se pudo exportar', error);
+      }
+      return;
+    }
+
+    const blob = new Blob([contents], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /** Importa datos: diálogo de apertura nativo en escritorio, `<input type="file">` en la web. */
+  const handleImport = async () => {
+    if (isTauri) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const raw = await invoke<string | null>('import_state_json');
+        if (raw) await importText(raw);
+      } catch (error) {
+        await showNativeError('No se pudo importar', error);
+      }
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
   return (
     <footer className="flex shrink-0 items-center gap-1 border-t border-black/[.06] px-4 py-2.5 dark:border-white/[.08]">
       <button
@@ -172,7 +214,7 @@ function SidebarFooter() {
         className="icon-btn"
         title="Importar datos (JSON)"
         aria-label="Importar datos (JSON)"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => void handleImport()}
       >
         <FileUp size={15} />
       </button>
@@ -201,9 +243,9 @@ function SidebarFooter() {
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
-          if (file) void handleImportFile(file);
           // Permite volver a elegir el mismo archivo más adelante.
           event.target.value = '';
+          if (file) void file.text().then((raw) => importText(raw));
         }}
       />
     </footer>

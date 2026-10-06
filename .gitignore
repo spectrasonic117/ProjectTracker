@@ -12,3 +12,7 @@ node_modules/
 .DS_Store
 .env
 .env.*
+
+# tauri (app de escritorio)
+src-tauri/target/
+src-tauri/gen/schemas/

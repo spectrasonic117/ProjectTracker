@@ -11,7 +11,7 @@ bun install
 bun run dev        # http://localhost:4321
 ```
 
-## Producción
+## Producción (web)
 
 ```bash
 bun run build
@@ -19,6 +19,28 @@ bun run preview
 ```
 
 Otros comandos: `bun run check` (typecheck con `astro check`).
+
+## App de escritorio (Rust + Tauri)
+
+La misma interfaz web corre como aplicación nativa mediante **Tauri 2**
+(el shell Rust vive en [`src-tauri/`](src-tauri); los datos siguen en localStorage
+del webview y exportar/importar usa diálogos nativos de archivos).
+
+```bash
+bun install
+bun run desktop:dev      # ventana nativa con recarga en vivo (http://localhost:4321)
+bun run desktop:build    # compila la app nativa en release
+```
+
+`bun run desktop:build` ejecuta primero `bun run build` (Astro) y produce:
+
+- `src-tauri/target/release/bundle/macos/ProjectTracker.app`
+- `src-tauri/target/release/bundle/dmg/ProjectTracker_0.1.0_aarch64.dmg`
+- (en Windows/Linux se generan los instaladores equivalentes: `.msi`/`.exe`, `.deb`/`.AppImage`)
+
+Para compilar necesitas las dependencias habituales de Tauri (en macOS, Xcode Command
+Line Tools). El icono fuente está en [`src-tauri/icons/app-icon.svg`](src-tauri/icons/app-icon.svg);
+para regenerar todos los tamaños: `bunx tauri icon src-tauri/icons/app-icon.svg`.
 
 ## Despliegue en GitHub Pages
 
@@ -76,4 +98,9 @@ src/
 ├── layouts/Layout.astro
 ├── pages/index.astro
 └── styles/global.css   # Tailwind v4 + clases compartidas estilo Apple
+src-tauri/              # shell nativo (Tauri 2 + Rust)
+├── src/lib.rs          # ventana principal + comandos export/import nativos
+├── tauri.conf.json     # configuración de la app y del bundle
+├── capabilities/       # permisos del webview
+└── icons/              # iconos generados (fuente: app-icon.svg)
 ```

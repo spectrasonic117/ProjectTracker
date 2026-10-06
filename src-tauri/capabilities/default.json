@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permisos base de la ventana principal. Los comandos propios (export_state_json / import_state_json) no requieren permisos adicionales.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
