@@ -13,21 +13,28 @@ pub struct DbConfig {
 async fn connect(config: &DbConfig) -> Result<sqlx::PgPool, String> {
     PgPoolOptions::new()
         .max_connections(2)
-        .acquire_timeout(std::time::Duration::from_secs(8))
+        .acquire_timeout(std::time::Duration::from_secs(12))
         .connect(&config.connection_string)
         .await
         .map_err(|error| format!("No se pudo conectar a la base de datos: {error}"))
 }
 
-/// Comprueba que las credenciales funcionan ejecutando una consulta trivial.
+/// Envía una query trivial para "despertar" una base de datos suspendida
+/// y prevenir la suspensión por inactividad (planes gratuitos de Neon).
 #[tauri::command]
-pub async fn test_neon_connection(config: DbConfig) -> Result<(), String> {
+pub async fn ping_neon(config: DbConfig) -> Result<(), String> {
     let pool = connect(&config).await?;
     sqlx::query("SELECT 1")
         .execute(&pool)
         .await
-        .map_err(|error| format!("Error al ejecutar la consulta de prueba: {error}"))?;
+        .map_err(|error| format!("Error al hacer ping a la base de datos: {error}"))?;
     Ok(())
+}
+
+/// Comprueba que la cadena de conexión a Neon es válida.
+#[tauri::command]
+pub async fn test_neon_connection(config: DbConfig) -> Result<(), String> {
+    ping_neon(config).await
 }
 
 /// Garantiza que la tabla de estado existe (idempotente).

@@ -59,6 +59,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             export_state_json,
             import_state_json,
+            db::ping_neon,
             db::test_neon_connection,
             db::save_state_to_db,
             db::load_state_from_db

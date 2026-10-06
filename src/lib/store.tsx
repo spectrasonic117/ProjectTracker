@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { INBOX_ID, type AppState, type CardData, type ColumnData, type WorkspaceData } from './types';
-import { loadState, saveState, getStorageConfig, isTauri, loadStateFromDb, saveStateToDb } from './storage';
+import { loadState, saveState, getStorageConfig, isTauri, loadStateFromDb, saveStateToDb, pingNeon } from './storage';
 
 export const WORKSPACE_COLORS = [
   '#0a84ff',
@@ -394,9 +394,18 @@ interface BoardApi {
 
 const BoardContext = createContext<BoardApi | null>(null);
 
+/** Intervalo de ping para mantener Neon activo (en ms). */
+const NEON_PING_INTERVAL = 60_000; // 60 segundos
+
 async function loadStateFromProvider(): Promise<AppState | null> {
   const config = await getStorageConfig();
   if (config.provider === 'neon' && config.neonConnectionString && isTauri()) {
+    // Hacer ping de "despertar" antes de cargar si la DB podría estar suspendida
+    try {
+      await pingNeon(config.neonConnectionString);
+    } catch {
+      // Ignorar errores de ping - la carga seguirá y si falla, usamos fallback
+    }
     try {
       return await loadStateFromDb(config.neonConnectionString);
     } catch {
@@ -427,7 +436,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     // Si no hay local, mostrar seed mientras se carga Neon
     return createSeed();
   });
-  
+
   // Contador para forzar recargas manuales desde el proveedor configurado
   const [reloadCount, setReloadCount] = useState(0);
 
@@ -446,6 +455,38 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveStateToProvider(state);
   }, [state]);
+
+  // Ping periódico a Neon para mantenerla activa y evitar suspensión
+  useEffect(() => {
+    let cleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+    const setupPing = async () => {
+      const config = await getStorageConfig();
+      if (config.provider !== 'neon' || !config.neonConnectionString || !isTauri()) return;
+
+      // Ping inicial (despierta DB suspendida)
+      pingNeon(config.neonConnectionString).catch(() => {
+        // Ignorar fallos iniciales
+      });
+
+      // Intervalo periódico
+      cleanupInterval = setInterval(() => {
+        if (config.neonConnectionString) {
+          pingNeon(config.neonConnectionString).catch(() => {
+            // Ignorar fallos periódicos
+          });
+        }
+      }, NEON_PING_INTERVAL);
+    };
+
+    setupPing();
+
+    return () => {
+      if (cleanupInterval) {
+        clearInterval(cleanupInterval);
+      }
+    };
+  }, [reloadCount]); // ping al recargar también
 
   const api = useMemo<BoardApi>(() => {
     const activeId = state.activeWorkspaceId ?? '';

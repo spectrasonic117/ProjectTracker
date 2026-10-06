@@ -164,6 +164,14 @@ export async function testNeonConnection(connectionString: string): Promise<void
   await invoke('test_neon_connection', { config: { connectionString } });
 }
 
+/** Envía un ping a Neon para "despertar" la DB si está suspendida
+ *  y mantenerla activa (evita suspensión por inactividad en planes gratuitos). */
+export async function pingNeon(connectionString: string): Promise<void> {
+  if (!isTauri()) throw new Error('La base de datos externa solo está disponible en la app de escritorio.');
+  const { invoke } = await import('@tauri-apps/api/core');
+  await invoke('ping_neon', { config: { connectionString } });
+}
+
 /** Carga el estado desde Neon. Devuelve null si aún no hay datos guardados. */
 export async function loadStateFromDb(connectionString: string): Promise<AppState | null> {
   if (!isTauri()) throw new Error('La base de datos externa solo está disponible en la app de escritorio.');
