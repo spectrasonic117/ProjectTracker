@@ -4,10 +4,11 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useState,
   type ReactNode,
 } from 'react';
 import { INBOX_ID, type AppState, type CardData, type ColumnData, type WorkspaceData } from './types';
-import { loadState, saveState } from './storage';
+import { loadState, saveState, getStorageConfig, isTauri, loadStateFromDb, saveStateToDb } from './storage';
 
 export const WORKSPACE_COLORS = [
   '#0a84ff',
@@ -383,6 +384,7 @@ export interface BoardActions {
   updateCard(cardId: string, patch: Partial<Pick<CardData, 'title' | 'description'>>): void;
   moveCard(cardId: string, toContainerId: string, index: number | null): void;
   importState(state: AppState): void;
+  reloadData(): void;
 }
 
 interface BoardApi {
@@ -392,11 +394,57 @@ interface BoardApi {
 
 const BoardContext = createContext<BoardApi | null>(null);
 
-export function BoardProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, () => loadState() ?? createSeed());
+async function loadStateFromProvider(): Promise<AppState | null> {
+  const config = await getStorageConfig();
+  if (config.provider === 'neon' && config.neonConnectionString && isTauri()) {
+    try {
+      return await loadStateFromDb(config.neonConnectionString);
+    } catch {
+      // Fallback a localStorage si falla
+    }
+  }
+  return loadState();
+}
 
+async function saveStateToProvider(state: AppState): Promise<void> {
+  const config = await getStorageConfig();
+  if (config.provider === 'neon' && config.neonConnectionString && isTauri()) {
+    try {
+      await saveStateToDb(config.neonConnectionString, state);
+      return;
+    } catch {
+      // Fallback a localStorage si falla
+    }
+  }
+  saveState(state);
+}
+
+export function BoardProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, undefined, () => {
+    // Carga inicial síncrona desde localStorage (para mostrar algo rápido)
+    const local = loadState();
+    if (local) return local;
+    // Si no hay local, mostrar seed mientras se carga Neon
+    return createSeed();
+  });
+  
+  // Contador para forzar recargas manuales desde el proveedor configurado
+  const [reloadCount, setReloadCount] = useState(0);
+
+  // Carga asíncrona desde el proveedor configurado al montar y cuando cambie reloadCount
   useEffect(() => {
-    saveState(state);
+    let cancelled = false;
+    loadStateFromProvider().then((loaded) => {
+      if (!cancelled && loaded) {
+        dispatch({ type: 'state/import', state: loaded });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [reloadCount]); // recargar cuando se solicite explícitamente
+
+  // Guardar en el proveedor configurado cuando cambie el estado
+  useEffect(() => {
+    saveStateToProvider(state);
   }, [state]);
 
   const api = useMemo<BoardApi>(() => {
@@ -422,6 +470,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
         moveCard: (cardId, toContainerId, index) =>
           dispatch({ type: 'card/move', workspaceId: activeId, cardId, toContainerId, index }),
         importState: (next) => dispatch({ type: 'state/import', state: next }),
+        reloadData: () => setReloadCount((c) => c + 1),
       },
     };
   }, [state]);

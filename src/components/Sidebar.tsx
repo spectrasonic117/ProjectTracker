@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import {
@@ -11,15 +11,17 @@ import {
   PanelLeftOpen,
   Pencil,
   Plus,
+  Settings,
   Sun,
   Trash2,
 } from 'lucide-react';
 import { INBOX_ID } from '../lib/types';
-import { parseState } from '../lib/storage';
+import { parseState, getStorageConfig, type StorageConfig } from '../lib/storage';
 import { useBoard } from '../lib/store';
 import { useConfirm } from '../lib/confirm';
 import { useTheme } from '../lib/useTheme';
 import { CardComposer, SortableCard } from './Card';
+import { SettingsDialog } from './SettingsDialog';
 
 /** true cuando el frontend corre dentro del shell nativo de Tauri (app de escritorio). */
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -31,6 +33,13 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onToggle, onEditCard }: SidebarProps) {
+  const { actions } = useBoard();
+
+  const handleStorageChange = () => {
+    // El BoardProvider observará el cambio de configuración y recargará los datos
+    actions.reloadData();
+  };
+
   return (
     <aside
       className={`fixed inset-y-0 left-0 z-30 overflow-hidden border-r border-black/[.06] bg-white/70 backdrop-blur-2xl transition-[width] duration-300 ease-out motion-reduce:transition-none dark:border-white/[.08] dark:bg-[#151517]/70 ${
@@ -44,7 +53,7 @@ export function Sidebar({ collapsed, onToggle, onEditCard }: SidebarProps) {
           <SidebarHeader onToggle={onToggle} />
           <WorkspacesSection />
           <InboxSection onEditCard={onEditCard} />
-          <SidebarFooter />
+          <SidebarFooter onStorageChange={handleStorageChange} />
         </div>
       )}
     </aside>
@@ -125,12 +134,13 @@ function CollapsedRail({ onToggle }: { onToggle: () => void }) {
   );
 }
 
-/** Utilidades al pie: importar, exportar y tema. Solo visible con la barra expandida. */
-function SidebarFooter() {
+/** Utilidades al pie: importar, exportar, ajustes y tema. Solo visible con la barra expandida. */
+function SidebarFooter({ onStorageChange }: { onStorageChange: () => void }) {
   const { theme, toggle } = useTheme();
   const { state, actions } = useBoard();
   const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   /** Valida el contenido JSON y, tras confirmación, reemplaza el estado actual. */
   const importText = async (raw: string) => {
@@ -207,6 +217,18 @@ function SidebarFooter() {
     fileInputRef.current?.click();
   };
 
+  const [config, setConfig] = useState<StorageConfig>({ provider: 'local' });
+
+  useEffect(() => {
+    getStorageConfig().then(setConfig);
+  }, [onStorageChange]);
+
+  const handleSettingsSave = () => {
+    getStorageConfig().then(setConfig);
+    onStorageChange();
+    setSettingsOpen(false);
+  };
+
   return (
     <footer className="flex shrink-0 items-center gap-1 border-t border-black/[.06] px-4 py-2.5 dark:border-white/[.08]">
       <button
@@ -229,6 +251,15 @@ function SidebarFooter() {
       </button>
       <button
         type="button"
+        className={`icon-btn ${config.provider === 'neon' ? 'bg-[#0a84ff]/10 text-[#0a84ff]' : ''}`}
+        title="Ajustes de almacenamiento"
+        aria-label="Ajustes"
+        onClick={() => setSettingsOpen(true)}
+      >
+        <Settings size={15} />
+      </button>
+      <button
+        type="button"
         className="icon-btn ml-auto"
         title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
         aria-label="Cambiar tema"
@@ -243,10 +274,14 @@ function SidebarFooter() {
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
-          // Permite volver a elegir el mismo archivo más adelante.
           event.target.value = '';
           if (file) void file.text().then((raw) => importText(raw));
         }}
+      />
+      <SettingsDialog
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onStorageChange={handleSettingsSave}
       />
     </footer>
   );

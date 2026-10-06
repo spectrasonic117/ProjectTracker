@@ -1,5 +1,7 @@
 use tauri_plugin_dialog::DialogExt;
 
+mod db;
+
 /// Shell nativo de ProjectTracker (Tauri 2). La interfaz es la misma web de Astro:
 /// aquí solo viven las piezas que necesitan acceso al sistema operativo, como los
 /// diálogos nativos de exportar/importar (en el navegador se hace con blob e
@@ -54,7 +56,13 @@ async fn import_state_json(app: tauri::AppHandle) -> Result<Option<String>, Stri
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![export_state_json, import_state_json])
+        .invoke_handler(tauri::generate_handler![
+            export_state_json,
+            import_state_json,
+            db::test_neon_connection,
+            db::save_state_to_db,
+            db::load_state_from_db
+        ])
         .run(tauri::generate_context!())
         .expect("error al ejecutar la aplicación ProjectTracker");
 }

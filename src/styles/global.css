@@ -122,16 +122,31 @@ input[type='color'].color-swatch::-moz-color-swatch {
   }
 }
 
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .pop-in {
   animation: pop-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .fade-in {
   animation: fade-in 0.18s ease-out;
 }
+.slide-up {
+  animation: slide-up 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .pop-in,
-  .fade-in {
+  .fade-in,
+  .slide-up {
     animation: fade-in 0.12s ease;
   }
 }

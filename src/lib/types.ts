@@ -30,3 +30,13 @@ export interface AppState {
 
 /** Identificador reservado para el contenedor Inbox (las columnas usan su propio id). */
 export const INBOX_ID = 'inbox';
+
+/** Proveedor de almacenamiento disponible. */
+export type StorageProvider = 'local' | 'neon';
+
+/** Configuración de almacenamiento persistente. */
+export interface StorageConfig {
+  provider: StorageProvider;
+  /** Cadena de conexión para Neon (solo cuando provider === 'neon'). */
+  neonConnectionString?: string;
+}
