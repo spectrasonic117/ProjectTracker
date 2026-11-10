@@ -160,6 +160,7 @@ export function saveState(state: AppState): void {
 /** Comprueba que la cadena de conexión a Neon es válida. Solo en escritorio. */
 export async function testNeonConnection(connectionString: string): Promise<void> {
   if (!isTauri()) throw new Error('La base de datos externa solo está disponible en la app de escritorio.');
+  // Import dinámica: @tauri-apps/api/core solo funciona dentro del webview de Tauri, no en builds web.
   const { invoke } = await import('@tauri-apps/api/core');
   await invoke('test_neon_connection', { config: { connectionString } });
 }
@@ -168,6 +169,7 @@ export async function testNeonConnection(connectionString: string): Promise<void
  *  y mantenerla activa (evita suspensión por inactividad en planes gratuitos). */
 export async function pingNeon(connectionString: string): Promise<void> {
   if (!isTauri()) throw new Error('La base de datos externa solo está disponible en la app de escritorio.');
+  // Import dinámica: @tauri-apps/api/core solo funciona dentro del webview de Tauri, no en builds web.
   const { invoke } = await import('@tauri-apps/api/core');
   await invoke('ping_neon', { config: { connectionString } });
 }
@@ -175,16 +177,38 @@ export async function pingNeon(connectionString: string): Promise<void> {
 /** Carga el estado desde Neon. Devuelve null si aún no hay datos guardados. */
 export async function loadStateFromDb(connectionString: string): Promise<AppState | null> {
   if (!isTauri()) throw new Error('La base de datos externa solo está disponible en la app de escritorio.');
+  // Import dinámica: @tauri-apps/api/core solo funciona dentro del webview de Tauri, no en builds web.
   const { invoke } = await import('@tauri-apps/api/core');
   const raw = await invoke<string | null>('load_state_from_db', { config: { connectionString } });
   return raw ? parseState(raw) : null;
 }
 
-/** Guarda el estado en Neon (upsert del único registro de estado). */
+/** Convierte el estado normalizado en filas planas para la DB relacional. */
+export class DB {
+  static toDbPayloads(state: AppState) {
+    const activeWorkspaceId =
+      state.activeWorkspaceId && state.workspaces[state.activeWorkspaceId] ? state.activeWorkspaceId : null;
+    return {
+      cards: Object.values(state.cards).map((c) => ({ ...c })),
+      columns: state.workspaceIds.flatMap((wsId) =>
+        (state.workspaces[wsId]?.columnIds ?? []).map((cid) => {
+          const col = state.columns[cid];
+          return col
+            ? { id: col.id, workspaceId: wsId, title: col.title, cardIds: col.cardIds }
+            : ({ id: cid, workspaceId: wsId, title: 'Sin título', cardIds: [] } as ColumnData & { workspaceId: string });
+        })
+      ),
+      workspaces: state.workspaceIds.map((id) => ({ ...state.workspaces[id] })),
+      prefs: { activeWorkspaceId },
+    };
+  }
+}
+
 export async function saveStateToDb(connectionString: string, state: AppState): Promise<void> {
   if (!isTauri()) throw new Error('La base de datos externa solo está disponible en la app de escritorio.');
+  // Import dinámica: @tauri-apps/api/core solo funciona dentro del webview de Tauri, no en builds web.
   const { invoke } = await import('@tauri-apps/api/core');
-  await invoke('save_state_to_db', { config: { connectionString }, data: JSON.stringify(state) });
+  await invoke('save_state_to_db', { config: { connectionString }, ...DB.toDbPayloads(state) });
 }
 
 /**

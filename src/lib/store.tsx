@@ -439,22 +439,27 @@ export function BoardProvider({ children }: { children: ReactNode }) {
 
   // Contador para forzar recargas manuales desde el proveedor configurado
   const [reloadCount, setReloadCount] = useState(0);
+  // true cuando la carga del proveedor remoto terminó (o no aplica proveedor
+  // remoto y se usa el estado local/seed como fuente final)
+  const [hydrated, setHydrated] = useState(false);
 
   // Carga asíncrona desde el proveedor configurado al montar y cuando cambie reloadCount
   useEffect(() => {
     let cancelled = false;
     loadStateFromProvider().then((loaded) => {
-      if (!cancelled && loaded) {
-        dispatch({ type: 'state/import', state: loaded });
-      }
+      if (cancelled) return;
+      if (loaded) dispatch({ type: 'state/import', state: loaded });
+      setHydrated(true);
     });
     return () => { cancelled = true; };
   }, [reloadCount]); // recargar cuando se solicite explícitamente
 
-  // Guardar en el proveedor configurado cuando cambie el estado
+  // Guardar en el proveedor configurado cuando cambie el estado. Hasta que la
+  // carga remota termine, el estado local/seed no debe pisar la DB.
   useEffect(() => {
+    if (!hydrated) return;
     saveStateToProvider(state);
-  }, [state]);
+  }, [state, hydrated]);
 
   // Ping periódico a Neon para mantenerla activa y evitar suspensión
   useEffect(() => {
@@ -511,7 +516,10 @@ export function BoardProvider({ children }: { children: ReactNode }) {
         moveCard: (cardId, toContainerId, index) =>
           dispatch({ type: 'card/move', workspaceId: activeId, cardId, toContainerId, index }),
         importState: (next) => dispatch({ type: 'state/import', state: next }),
-        reloadData: () => setReloadCount((c) => c + 1),
+        reloadData: () => {
+          setHydrated(false);
+          setReloadCount((c) => c + 1);
+        },
       },
     };
   }, [state]);

@@ -1,11 +1,11 @@
+//! Shell nativo de ProjectTracker (Tauri 2). La interfaz es la misma web de Astro:
+//! aquí solo viven las piezas que necesitan acceso al sistema operativo, como los
+//! diálogos nativos de exportar/importar (en el navegador se hace con blob e
+//! `<input type="file">`, que no funcionan igual dentro del webview).
+
 use tauri_plugin_dialog::DialogExt;
 
 mod db;
-
-/// Shell nativo de ProjectTracker (Tauri 2). La interfaz es la misma web de Astro:
-/// aquí solo viven las piezas que necesitan acceso al sistema operativo, como los
-/// diálogos nativos de exportar/importar (en el navegador se hace con blob e
-/// `<input type="file">`, que no funcionan igual dentro del webview).
 
 /// Abre un diálogo de guardado nativo y escribe el JSON exportado.
 /// Devuelve la ruta elegida, o `None` si el usuario canceló el diálogo.
